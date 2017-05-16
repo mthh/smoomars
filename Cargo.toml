@@ -1,0 +1,21 @@
+[package]
+name = "smoomars"
+version = "0.1.0"
+authors = ["mthh <matthieu.viry@cnrs.fr>"]
+
+[dependencies]
+rustc-serialize = "0.3"
+error-chain = "0.10"
+csv = "0.15"
+clap = "2.23"
+scan-rules = "0.2.0"
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"
+jobsteal = {git = "https://github.com/rphmeier/jobsteal"}
+geojson = "0.8"
+gdal = "^0.2"
+
+[[bin]]
+name = "smoomars"
+doc = false
