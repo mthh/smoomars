@@ -7,20 +7,28 @@ use clap::{Arg, App};
 
 fn main(){
     let matches = App::new("smoomars").version("0.1.0")
-       .about("Compute inverse distance interpolation and population potentials.")
+       .about("Compute inverse distance interpolation or population potentials.")
+       .arg(Arg::with_name("method")
+            .index(1)
+            .value_name("METHOD")
+            .required(true)
+            .possible_values(&["idw", "stewart", "par_stewart"])
+            .help("The method to use."))
        .arg(Arg::with_name("input")
             .short("i").long("input")
             .required(true).takes_value(true)
             .value_name("FILE")
-            .help("Input file to use (.csv or .json or .geojson). If .geojson, default to spherical distance"))
+            .help("Input file to use (.csv, .json or .geojson). If .geojson, default to spherical distance."))
         .arg(Arg::with_name("power")
              .short("p").long("power")
-             .required(true).takes_value(true)
+             .default_value("2")
+             .takes_value(true)
              .value_name("POWER")
-             .help("Power."))
+             .help("Power value for the interpolation function."))
         .arg(Arg::with_name("distance")
              .short("d").long("distance")
-             .required(true).takes_value(true)
+             .takes_value(true)
+             .default_value("Spherical")
              .value_name("TYPEDISTANCE")
              .help("Cartesian/Spherical regarding to use euclidian distance or spherical distance"))
         .arg(Arg::with_name("scale")
@@ -30,40 +38,37 @@ fn main(){
              .help("Resolution of the output in number of cells as resoX-resoY."))
         .arg(Arg::with_name("window")
              .short("w").long("window")
-             .required(true).takes_value(true).require_equals(true)
-             .value_name("SCALE")
+             .takes_value(true).require_equals(true)
+             .value_name("WINDOW")
              .help("Coordinates of the visualisation window, given as minimum latitude,minimum longitude,maximum latitude,maximum longitude."))
-        .arg(Arg::with_name("method")
-             .short("m").long("method")
-             .required(true).takes_value(true).require_equals(true)
-             .value_name("METHOD")
-             .help("Interpolation method to use"))
         .arg(Arg::with_name("output")
              .short("o").long("output")
              .required(true).takes_value(true)
              .value_name("FILE")
-             .help("Path for output file (json format)."))
+             .help("Path for output file (according to the outfile extension, .json, .csv, .geojson and .geotiff are accepted)."))
          .arg(Arg::with_name("span")
-            .long("span").takes_value(true)
+            .long("span")
+            .takes_value(true)
             .value_name("SPAN")
             .help("Span in kilometers"))
+        .arg(Arg::with_name("function")
+            .long("function")
+            .takes_value(true)
+            .default_value("pareto")
+            .possible_values(&["exponential", "pareto"])
+            .help("The name of the smoothing function to use for stewart method."))
          .arg(Arg::with_name("field")
              .short("c").long("field_name")
              .takes_value(true)
              .value_name("FIELD")
              .help("(Required for GeoJSON input) Field name containing the stock values to use."))
         .get_matches();
+
     let b: i32 = matches.value_of("power").unwrap().parse::<i32>().unwrap();
     let_scan!(matches.value_of("scale").unwrap(); (
         let reso_lat: u32, "-", let reso_lon: u32));
-    let_scan!(matches.value_of("window").unwrap(); (
-        let min_lat: f64, ",", let max_lat: f64, ",", let min_lon: f64, ",", let max_lon: f64));
-    let bbox = Bbox::new(min_lat, max_lat, min_lon, max_lon);
     let method = matches.value_of("method").unwrap();
-
     let file_path = matches.value_of("input").unwrap();
-    let obs_points;
-    let obs_points_spherical;
     let mut dist = matches.value_of("distance").unwrap();
     if file_path.contains("geojson") || file_path.contains("GEOJSON") {
         dist = "Spherical";
@@ -73,6 +78,7 @@ fn main(){
     } else { 0.0 };
     match dist {
         "Spherical" => {
+            let obs_points_spherical;
             if file_path.contains("geojson") || file_path.contains("GEOJSON") {
                 let field_name = if matches.is_present("field") { matches.value_of("field") } else { None };
                 if field_name.is_none(){
@@ -84,9 +90,16 @@ fn main(){
             } else {
                 obs_points_spherical = utils::parse_csv_points::<utils::SphericalPtValue>(file_path).unwrap();
             }
+            let bbox = if matches.is_present("window") {
+                let_scan!(matches.value_of("window").unwrap(); (
+                    let min_lat: f64, ",", let max_lat: f64, ",", let min_lon: f64, ",", let max_lon: f64));
+                Bbox::new(min_lat, max_lat, min_lon, max_lon)
+            } else {
+                Bbox::from_points(&obs_points_spherical)
+            };
             let result = match method {
-                "1" => {
-                    println!("Method 1");
+                "idw" => {
+                    println!("IDW");
                     idw_interpolation(reso_lat as u32, reso_lon as u32, &bbox, &obs_points_spherical, b).unwrap()
                 },
                 "stewart" => {
@@ -101,7 +114,7 @@ fn main(){
                     let conf = StewartPotentialGrid::new(span, b as f64, SmoothType::Exponential, &bbox, reso_lat as u32, reso_lon as u32, true);
                     stewart(&conf, &obs_points_spherical).unwrap()
                 },
-                &_ => panic!("Wrong method")
+                &_ => unreachable!()
             };
             let output_path = matches.value_of("output").unwrap();
             if output_path.contains("geojson") || output_path.contains("GEOJSON") {
@@ -113,14 +126,21 @@ fn main(){
             }
         },
         "Euclidian" => {
-            if file_path.contains("json") || file_path.contains("JSON") {
-                obs_points = utils::parse_json_points::<utils::CartesianPtValue>(file_path).unwrap();
+            let obs_points = if file_path.contains("json") || file_path.contains("JSON") {
+                utils::parse_json_points::<utils::CartesianPtValue>(file_path).unwrap()
             } else {
-                obs_points = utils::parse_csv_points::<utils::CartesianPtValue>(file_path).unwrap();
-            }
+                utils::parse_csv_points::<utils::CartesianPtValue>(file_path).unwrap()
+            };
+            let bbox = if matches.is_present("window") {
+                let_scan!(matches.value_of("window").unwrap(); (
+                    let min_lat: f64, ",", let max_lat: f64, ",", let min_lon: f64, ",", let max_lon: f64));
+                Bbox::new(min_lat, max_lat, min_lon, max_lon)
+            } else {
+                Bbox::from_points(&obs_points)
+            };
             let result = match method {
-                "1" => {
-                    println!("Method 1");
+                "idw" => {
+                    println!("IDW");
                     idw_interpolation(reso_lat as u32, reso_lon as u32, &bbox, &obs_points, b).unwrap()
                 },
                 "stewart" => {
@@ -135,7 +155,7 @@ fn main(){
                     let conf = StewartPotentialGrid::new(span, b as f64, SmoothType::Exponential, &bbox, reso_lat as u32, reso_lon as u32, true);
                     stewart(&conf, &obs_points).unwrap()
                 },
-                &_ => panic!("Wrong method")
+                &_ => unreachable!()
             };
             let output_path = matches.value_of("output").unwrap();
             if output_path.contains("geotiff") {

@@ -16,6 +16,10 @@ jobsteal = {git = "https://github.com/rphmeier/jobsteal"}
 geojson = "0.8"
 gdal = "^0.2"
 
+[dev-dependencies]
+gnuplot = "0.0.22"
+argparse-rs = "=0.1.0"
+
 [[bin]]
 name = "smoomars"
 doc = false
