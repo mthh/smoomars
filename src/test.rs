@@ -5,14 +5,14 @@ mod test {
 
     #[test]
     fn test_idw() {
-        let obs_points = utils::parse_json_points::<utils::CartesianPtValue>("tests/ra.json").unwrap();
+        let obs_points = utils::parse_json_points::<utils::CartesianPtValue>("examples/ra.json").unwrap();
         let bbox = bbox::Bbox::new(1.0, 4.0, 32.0, 35.0);
         idw_interpolation(80, 60, &bbox, &obs_points, 2).unwrap();
     }
 
     #[test]
     fn test_stewart_equal_stewart_parallel() {
-        let obs_points = utils::parse_json_points::<utils::SphericalPtValue>("tests/ra.json").unwrap();
+        let obs_points = utils::parse_json_points::<utils::SphericalPtValue>("examples/ra.json").unwrap();
         let bbox = bbox::Bbox::new(1.0, 4.0, 32.0, 35.0);
         let reso_lat: u32 = 80;
         let reso_lon: u32 = 80;
