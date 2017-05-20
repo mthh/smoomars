@@ -197,6 +197,7 @@ pub fn save_geojson_points(path: &str, result_points: Vec<SphericalPtValue>) -> 
 
 pub fn parse_csv_points<T>(path: &str) -> Result<Vec<T>> where T: PtValue{
     let mut rdr = csv::Reader::from_file(path)?;
+    rdr = rdr.has_headers(true);
     let mut res = Vec::new();
     for record in rdr.decode() {
         let (x, y, val): (f64, f64, f64) = record?;

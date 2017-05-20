@@ -2,7 +2,7 @@ extern crate gnuplot;
 extern crate smoomars;
 
 use smoomars::utils::*;
-use smoomars::{StewartPotentialGrid, stewart, SmoothType, idw_interpolation, Bbox};
+use smoomars::{StewartPotentialGrid, stewart, SmoothType, idw_interpolation, Bbox, rbf_interpolation};
 use gnuplot::*;
 
 
@@ -66,12 +66,11 @@ fn example(c: Common) {
     	.set_view(45.0, 175.0);
 	c.show(&mut fg, None);
 
-    let obs_points = parse_csv_points::<CartesianPtValue>("examples/two_stocks.csv").unwrap();
-    println!("{:?}", obs_points);
+    let obs_points_two_stocks = parse_csv_points::<CartesianPtValue>("examples/two_stocks.csv").unwrap();
     let bbox = Bbox::new(0.0, 10.0, 0.0, 10.0);
     let (reso_lon, reso_lat) = (100, 100);
     let conf1 = StewartPotentialGrid::new(2.5, 2.0, SmoothType::Exponential, &bbox, reso_lat, reso_lon, false);
-    let res_stew: Vec<CartesianPtValue> = stewart(&conf1, &obs_points).unwrap();
+    let res_stew: Vec<CartesianPtValue> = stewart(&conf1, &obs_points_two_stocks).unwrap();
 	let mut z1 = Vec::with_capacity(res_stew.len());
 	for pt in res_stew {
         z1.push(pt.get_value());
@@ -90,11 +89,11 @@ fn example(c: Common) {
     	.set_view(45.0, 175.0);
 	c.show(&mut fg, None);
 
-    let obs_points = parse_csv_points::<CartesianPtValue>("examples/two_stocks.csv").unwrap();
+
     let bbox = Bbox::new(0.0, 10.0, 0.0, 10.0);
     let (reso_lon, reso_lat) = (100, 100);
     let conf1 = StewartPotentialGrid::new(2.5, 2.0, SmoothType::Pareto, &bbox, reso_lat, reso_lon, false);
-    let res_stew: Vec<CartesianPtValue> = stewart(&conf1, &obs_points).unwrap();
+    let res_stew: Vec<CartesianPtValue> = stewart(&conf1, &obs_points_two_stocks).unwrap();
 	let mut z1 = Vec::with_capacity(res_stew.len());
 	for pt in res_stew {
         z1.push(pt.get_value());
@@ -112,6 +111,29 @@ fn example(c: Common) {
     	.set_palette(HELIX)
     	.set_view(45.0, 175.0);
 	c.show(&mut fg, None);
+
+
+    let bbox = Bbox::new(0.0, 10.0, 0.0, 10.0);
+    let (reso_lon, reso_lat) = (40, 40);
+    let res_rbf: Vec<CartesianPtValue> = rbf_interpolation(reso_lon, reso_lat, &bbox, &obs_points_two_stocks, "inverse_multiquadratic", Some(1.66)).unwrap();
+	let mut z1 = Vec::with_capacity(res_rbf.len());
+	for pt in res_rbf {
+        z1.push(pt.get_value());
+	}
+
+    let mut fg = Figure::new();
+    c.set_term(&mut fg);
+    fg.axes3d()
+        .set_title("Inverse multiquadratic RBF interpolation (epsilon: 1.66).", &[])
+        .surface(z1.iter(), reso_lon as usize, reso_lat as usize, Some((0.0, 0.0, 10.0, 10.0)), &[])
+    	.set_x_label("X", &[])
+    	.set_y_label("Y", &[])
+    	.set_z_label("Z", &[])
+    	.set_z_range(Auto, Auto)
+    	.set_palette(HELIX)
+    	.set_view(45.0, 175.0);
+	c.show(&mut fg, None);
+
 }
 
 pub struct Common

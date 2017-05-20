@@ -2,8 +2,10 @@ extern crate clap;
 extern crate smoomars;
 #[macro_use] extern crate scan_rules;
 
+
 use smoomars::*;
 use clap::{Arg, App};
+
 
 fn main(){
     let matches = App::new("smoomars").version("0.1.0")

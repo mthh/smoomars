@@ -15,6 +15,7 @@ serde_derive = "1.0"
 jobsteal = {git = "https://github.com/rphmeier/jobsteal"}
 geojson = "0.8"
 gdal = "^0.2"
+rulinalg = "*"
 
 [dev-dependencies]
 gnuplot = "0.0.22"
