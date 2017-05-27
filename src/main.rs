@@ -1,13 +1,14 @@
 extern crate clap;
 extern crate smoomars;
-#[macro_use] extern crate scan_rules;
+#[macro_use]
+extern crate scan_rules;
 
 
 use smoomars::*;
 use clap::{Arg, App};
 
 
-fn main(){
+fn main() {
     let matches = App::new("smoomars").version("0.1.0")
        .about("Compute inverse distance interpolation or population potentials.")
        .arg(Arg::with_name("method")
@@ -66,7 +67,7 @@ fn main(){
              .help("(Required for GeoJSON input) Field name containing the stock values to use."))
         .get_matches();
 
-    let b: i32 = matches.value_of("power").unwrap().parse::<i32>().unwrap();
+    let b: f64 = matches.value_of("power").unwrap().parse::<f64>().unwrap();
     let_scan!(matches.value_of("scale").unwrap(); (
         let reso_lat: u32, "-", let reso_lon: u32));
     let method = matches.value_of("method").unwrap();
@@ -77,20 +78,31 @@ fn main(){
     }
     let span = if matches.is_present("span") {
         matches.value_of("span").unwrap().parse::<f64>().unwrap()
-    } else { 0.0 };
+    } else {
+        0.0
+    };
     match dist {
         "Spherical" => {
             let obs_points_spherical;
             if file_path.contains("geojson") || file_path.contains("GEOJSON") {
-                let field_name = if matches.is_present("field") { matches.value_of("field") } else { None };
-                if field_name.is_none(){
+                let field_name = if matches.is_present("field") {
+                    matches.value_of("field")
+                } else {
+                    None
+                };
+                if field_name.is_none() {
                     panic!("Error: Field name is required for GeoJSON input (arg. --field=name).");
                 }
-                obs_points_spherical = utils::parse_geojson_points::<utils::SphericalPtValue>(file_path, field_name.unwrap()).unwrap();
+                obs_points_spherical =
+                    utils::parse_geojson_points::<utils::SphericalPtValue>(file_path,
+                                                                           field_name.unwrap())
+                            .unwrap();
             } else if file_path.contains("json") || file_path.contains("JSON") {
-                obs_points_spherical = utils::parse_json_points::<utils::SphericalPtValue>(file_path).unwrap();
+                obs_points_spherical =
+                    utils::parse_json_points::<utils::SphericalPtValue>(file_path).unwrap();
             } else {
-                obs_points_spherical = utils::parse_csv_points::<utils::SphericalPtValue>(file_path).unwrap();
+                obs_points_spherical =
+                    utils::parse_csv_points::<utils::SphericalPtValue>(file_path).unwrap();
             }
             let bbox = if matches.is_present("window") {
                 let_scan!(matches.value_of("window").unwrap(); (
@@ -102,31 +114,56 @@ fn main(){
             let result = match method {
                 "idw" => {
                     println!("IDW");
-                    idw_interpolation(reso_lat as u32, reso_lon as u32, &bbox, &obs_points_spherical, b).unwrap()
-                },
+                    idw_interpolation(reso_lat as u32,
+                                      reso_lon as u32,
+                                      &bbox,
+                                      &obs_points_spherical,
+                                      b)
+                            .unwrap()
+                }
                 "stewart" => {
-                    if span == 0.0 { panic!("Invalid or missing span value !") }
+                    if span == 0.0 {
+                        panic!("Invalid or missing span value !")
+                    }
                     println!("stewart");
-                    let conf = StewartPotentialGrid::new(span, b as f64, SmoothType::Exponential, &bbox, reso_lat as u32, reso_lon as u32, false);
+                    let conf = StewartPotentialGrid::new(span,
+                                                         b as f64,
+                                                         SmoothType::Exponential,
+                                                         &bbox,
+                                                         reso_lat as u32,
+                                                         reso_lon as u32,
+                                                         false);
                     stewart(&conf, &obs_points_spherical).unwrap()
-                },
+                }
                 "par_stewart" => {
-                    if span == 0.0 { panic!("Invalid or missing span value !") }
+                    if span == 0.0 {
+                        panic!("Invalid or missing span value !")
+                    }
                     println!("stewart parallel");
-                    let conf = StewartPotentialGrid::new(span, b as f64, SmoothType::Exponential, &bbox, reso_lat as u32, reso_lon as u32, true);
+                    let conf = StewartPotentialGrid::new(span,
+                                                         b as f64,
+                                                         SmoothType::Exponential,
+                                                         &bbox,
+                                                         reso_lat as u32,
+                                                         reso_lon as u32,
+                                                         true);
                     stewart(&conf, &obs_points_spherical).unwrap()
-                },
-                &_ => unreachable!()
+                }
+                &_ => unreachable!(),
             };
             let output_path = matches.value_of("output").unwrap();
             if output_path.contains("geojson") || output_path.contains("GEOJSON") {
                 utils::save_geojson_points(output_path, result).unwrap();
             } else if output_path.contains("geotiff") {
-                utils::write_to_raster(result, &bbox, (reso_lat as u32, reso_lon as u32), output_path).unwrap();
+                utils::write_to_raster(result,
+                                       &bbox,
+                                       (reso_lat as u32, reso_lon as u32),
+                                       output_path)
+                        .unwrap();
             } else {
                 utils::save_json_points(output_path, result).unwrap();
             }
-        },
+        }
         "Euclidian" => {
             let obs_points = if file_path.contains("json") || file_path.contains("JSON") {
                 utils::parse_json_points::<utils::CartesianPtValue>(file_path).unwrap()
@@ -143,29 +180,50 @@ fn main(){
             let result = match method {
                 "idw" => {
                     println!("IDW");
-                    idw_interpolation(reso_lat as u32, reso_lon as u32, &bbox, &obs_points, b).unwrap()
-                },
+                    idw_interpolation(reso_lat as u32, reso_lon as u32, &bbox, &obs_points, b)
+                        .unwrap()
+                }
                 "stewart" => {
-                    if span == 0.0 { panic!("Invalid or missing span value !") }
+                    if span == 0.0 {
+                        panic!("Invalid or missing span value !")
+                    }
                     println!("stewart");
-                    let conf = StewartPotentialGrid::new(span, b as f64, SmoothType::Exponential, &bbox, reso_lat as u32, reso_lon as u32, false);
+                    let conf = StewartPotentialGrid::new(span,
+                                                         b,
+                                                         SmoothType::Exponential,
+                                                         &bbox,
+                                                         reso_lat as u32,
+                                                         reso_lon as u32,
+                                                         false);
                     stewart(&conf, &obs_points).unwrap()
-                },
+                }
                 "par_stewart" => {
-                    if span == 0.0 { panic!("Invalid or missing span value !") }
+                    if span == 0.0 {
+                        panic!("Invalid or missing span value !")
+                    }
                     println!("stewart parallel");
-                    let conf = StewartPotentialGrid::new(span, b as f64, SmoothType::Exponential, &bbox, reso_lat as u32, reso_lon as u32, true);
+                    let conf = StewartPotentialGrid::new(span,
+                                                         b,
+                                                         SmoothType::Exponential,
+                                                         &bbox,
+                                                         reso_lat as u32,
+                                                         reso_lon as u32,
+                                                         true);
                     stewart(&conf, &obs_points).unwrap()
-                },
-                &_ => unreachable!()
+                }
+                &_ => unreachable!(),
             };
             let output_path = matches.value_of("output").unwrap();
             if output_path.contains("geotiff") {
-               utils::write_to_raster(result, &bbox, (reso_lat as u32, reso_lon as u32), output_path).unwrap();
-           } else {
-               utils::save_json_points(output_path, result).unwrap();
-           }
-        },
-        &_ => panic!("Invalid distance type")
+                utils::write_to_raster(result,
+                                       &bbox,
+                                       (reso_lat as u32, reso_lon as u32),
+                                       output_path)
+                        .unwrap();
+            } else {
+                utils::save_json_points(output_path, result).unwrap();
+            }
+        }
+        &_ => panic!("Invalid distance type"),
     };
 }

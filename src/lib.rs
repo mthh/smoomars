@@ -1,4 +1,10 @@
 #![crate_name="smoomars"]
+#![deny(trivial_casts,
+        missing_debug_implementations,
+        unstable_features,
+        unsafe_code,
+        unused_import_braces)]
+// missing_docs,missing_debug_implementations, missing_copy_implementations, trivial_numeric_casts, unused_qualifications
 
 #[macro_use]
 extern crate error_chain;
@@ -25,9 +31,9 @@ pub mod utils;
 
 pub use self::bbox::Bbox;
 pub use self::idw::idw_interpolation1 as idw_interpolation;
-pub use self::pot_stewart::{SmoothType, StewartPotentialGrid, stewart};
+pub use self::pot_stewart::{SmoothType, StewartPotentialGrid, stewart, stewart_interpolation};
 pub use self::rbf::{Rbf, rbf_interpolation};
-pub use self::utils::{ValuesJson, PtValue, SphericalPtValue, CartesianPtValue};
+pub use self::utils::{PtValue, SphericalPtValue, CartesianPtValue};
 pub use errors::*;
 
 #[cfg(test)]

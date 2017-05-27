@@ -1,15 +1,18 @@
-use ::errors::*;
-use ::utils::*;
-use ::bbox::Bbox;
+use errors::*;
+use utils::*;
+use bbox::Bbox;
 use std::f64;
 use std::marker::{Send, Sync};
 use jobsteal::{make_pool, BorrowSpliteratorMut, Spliterator};
 
+
+#[derive(Debug, Clone)]
 pub enum SmoothType {
     Exponential = 0,
-    Pareto
+    Pareto,
 }
 
+#[derive(Debug, Clone)]
 pub struct StewartPotentialGrid<'a> {
     smooth_func: fn(f64, f64, f64) -> f64,
     reso_x: u32,
@@ -17,35 +20,88 @@ pub struct StewartPotentialGrid<'a> {
     beta: f64,
     alpha: f64,
     bbox: &'a Bbox,
-    n_thread: u32
+    n_thread: u32,
 }
 
 impl<'a> StewartPotentialGrid<'a> {
-    pub fn new(span: f64, beta: f64, interaction_type: SmoothType, bbox: &'a Bbox, reso_x: u32, reso_y: u32, parallel: bool) -> Self {
-        let n_thread = match parallel { true => 3, false => 1 };
+    pub fn new(span: f64,
+               beta: f64,
+               interaction_type: SmoothType,
+               bbox: &'a Bbox,
+               reso_x: u32,
+               reso_y: u32,
+               parallel: bool)
+               -> Self {
+        let n_thread = match parallel {
+            true => 3,
+            false => 1,
+        };
         match interaction_type {
             SmoothType::Exponential => {
                 StewartPotentialGrid {
                     bbox: bbox,
-                    reso_x: reso_x, reso_y: reso_y,
+                    reso_x: reso_x,
+                    reso_y: reso_y,
                     beta: beta,
                     alpha: 0.69314718055994529 / (span).powf(beta),
                     smooth_func: exponential,
-                    n_thread: n_thread
-
+                    n_thread: n_thread,
                 }
-            },
+            }
             SmoothType::Pareto => {
                 StewartPotentialGrid {
-                    reso_x: reso_x, reso_y: reso_y,
+                    reso_x: reso_x,
+                    reso_y: reso_y,
                     bbox: bbox,
                     beta: beta,
                     alpha: ((2.0 as f64).powf(1.0 / beta) - 1.0) / span,
                     smooth_func: pareto,
-                    n_thread: n_thread
+                    n_thread: n_thread,
                 }
             }
         }
+    }
+}
+
+
+
+pub struct Stewart<'a, T: 'a> {
+    obs_points: &'a [T],
+    // span: f64,
+    beta: f64,
+    alpha: f64,
+    distance_function: fn(f64, f64, f64) -> f64,
+}
+
+impl<'a, T> Stewart<'a, T>
+    where T: PtValue
+{
+    pub fn new(obs_points: &'a [T], distance_function: &str, span: f64, beta: Option<f64>) -> Self {
+        let _beta: f64 = if beta.is_some() { beta.unwrap() } else { 2.0 };
+        let (_dist_func, alpha): (fn(f64, f64, f64) -> f64, f64) = match distance_function {
+            "exponential" => (exponential, 0.69314718055994529 / (span).powf(_beta)),
+            "pareto" => (pareto, ((2.0 as f64).powf(1.0 / _beta) - 1.0) / span),
+            &_ => panic!("Invalid function name!"),
+        };
+        Stewart {
+            obs_points: obs_points,
+            // span: span,
+            beta: _beta,
+            alpha: alpha,
+            distance_function: _dist_func,
+        }
+    }
+
+    pub fn interp_point(&self, pt: (f64, f64)) -> f64 {
+        let func = self.distance_function;
+        let value = self.obs_points
+            .iter()
+            .fold(0.0, |mut sum, obs_pt| {
+                let val = obs_pt.get_value();
+                sum += val * func(self.alpha, self.beta, obs_pt.distance(pt.0, pt.1));
+                sum
+            });
+        value
     }
 }
 
@@ -59,15 +115,45 @@ fn pareto(alpha: f64, beta: f64, dist: f64) -> f64 {
     (1.0 + alpha * dist).powf(-beta)
 }
 
+pub fn stewart_interpolation<T>(reso_x: u32,
+                                reso_y: u32,
+                                bbox: &Bbox,
+                                obs_points: &[T],
+                                func_name: &str,
+                                span: f64,
+                                beta: Option<f64>)
+                                -> Result<Vec<T>>
+    where T: PtValue
+{
 
-pub fn stewart<T>(stewart_config: &StewartPotentialGrid, obs_points: &[T]) -> Result<Vec<T>> where T: PtValue + Send + Sync {
-    let (bbox, reso_x, reso_y) = (stewart_config.bbox, stewart_config.reso_x, stewart_config.reso_y);
+    let x_step = (bbox.max_x - bbox.min_x) / reso_x as f64;
+    let y_step = (bbox.max_y - bbox.min_y) / reso_y as f64;
+    let mut unknown_pts = Vec::with_capacity((reso_x * reso_y) as usize);
+    let stewart = Stewart::new(obs_points, func_name, span, beta);
+    for i in 0..reso_x {
+        for j in 0..reso_y {
+            let x = bbox.min_x + x_step * i as f64;
+            let y = bbox.min_y + y_step * j as f64;
+            let value = stewart.interp_point((x, y));
+            unknown_pts.push(T::new(x, y, value));
+        }
+    }
+    Ok(unknown_pts)
+}
+
+pub fn stewart<T>(stewart_config: &StewartPotentialGrid, obs_points: &[T]) -> Result<Vec<T>>
+    where T: PtValue + Send + Sync
+{
+    let (bbox, reso_x, reso_y) =
+        (stewart_config.bbox, stewart_config.reso_x, stewart_config.reso_y);
     let x_step = (bbox.max_x - bbox.min_x) / reso_x as f64;
     let y_step = (bbox.max_y - bbox.min_y) / reso_y as f64;
     let mut plots = Vec::with_capacity((reso_x * reso_y) as usize);
     for i in 0..reso_x {
         for j in 0..reso_y {
-            plots.push(T::new(bbox.min_x + x_step * i as f64, bbox.min_y + y_step * j as f64, 0.0));
+            plots.push(T::new(bbox.min_x + x_step * i as f64,
+                              bbox.min_y + y_step * j as f64,
+                              0.0));
         }
     }
     if stewart_config.n_thread < 2 {
@@ -78,12 +164,15 @@ pub fn stewart<T>(stewart_config: &StewartPotentialGrid, obs_points: &[T]) -> Re
     Ok(plots)
 }
 
-fn do_pot<T>(flat_grid:  &mut Vec<T>, obs_points: &[T], stewart_config: &StewartPotentialGrid) where T: PtValue {
+fn do_pot<T>(flat_grid: &mut Vec<T>, obs_points: &[T], stewart_config: &StewartPotentialGrid)
+    where T: PtValue
+{
     let (beta, alpha) = (stewart_config.beta, stewart_config.alpha);
     let func = stewart_config.smooth_func;
     for cell in flat_grid.iter_mut() {
         // let (cell_x, cell_y) = cell.get_coordinates();
-        let value = obs_points.iter()
+        let value = obs_points
+            .iter()
             .fold(0.0, |mut sum, obs_pt| {
                 let (x, y, val) = obs_pt.get_triplet();
                 sum += val * func(alpha, beta, cell.distance(x, y));
@@ -93,19 +182,24 @@ fn do_pot<T>(flat_grid:  &mut Vec<T>, obs_points: &[T], stewart_config: &Stewart
     }
 }
 
-fn do_pot_par<T>(flat_grid:  &mut Vec<T>, obs_points: &[T], stewart_config: &StewartPotentialGrid) where T: PtValue + Send + Sync {
+fn do_pot_par<T>(flat_grid: &mut Vec<T>, obs_points: &[T], stewart_config: &StewartPotentialGrid)
+    where T: PtValue + Send + Sync
+{
     let (beta, alpha) = (stewart_config.beta, stewart_config.alpha);
     let func = stewart_config.smooth_func;
     let mut pool = make_pool(stewart_config.n_thread as usize).unwrap();
-    flat_grid.split_iter_mut().for_each(&pool.spawner(), |cell|{
-        let value = obs_points.iter()
-            .fold(0.0, |mut sum, obs_pt| {
-                let (x, y, val) = obs_pt.get_triplet();
-                sum += val * func(alpha, beta, cell.distance(x, y));
-                sum
-            });
-        cell.set_value(value);
-    });
+    flat_grid
+        .split_iter_mut()
+        .for_each(&pool.spawner(), |cell| {
+            let value = obs_points
+                .iter()
+                .fold(0.0, |mut sum, obs_pt| {
+                    let (x, y, val) = obs_pt.get_triplet();
+                    sum += val * func(alpha, beta, cell.distance(x, y));
+                    sum
+                });
+            cell.set_value(value);
+        });
 }
 
 //
