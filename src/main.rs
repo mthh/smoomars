@@ -1,4 +1,5 @@
 extern crate clap;
+extern crate num_cpus;
 extern crate smoomars;
 #[macro_use]
 extern crate scan_rules;
@@ -132,21 +133,22 @@ fn main() {
                                                          &bbox,
                                                          reso_lat as u32,
                                                          reso_lon as u32,
-                                                         false);
+                                                         1);
                     stewart(&conf, &obs_points_spherical).unwrap()
                 }
                 "par_stewart" => {
                     if span == 0.0 {
                         panic!("Invalid or missing span value !")
                     }
-                    println!("stewart parallel");
+                    let nb_core = num_cpus::get();
                     let conf = StewartPotentialGrid::new(span,
                                                          b as f64,
                                                          SmoothType::Exponential,
                                                          &bbox,
                                                          reso_lat as u32,
                                                          reso_lon as u32,
-                                                         true);
+                                                         nb_core);
+                    println!("stewart (using {:?} core)", nb_core);
                     stewart(&conf, &obs_points_spherical).unwrap()
                 }
                 &_ => unreachable!(),
@@ -194,21 +196,22 @@ fn main() {
                                                          &bbox,
                                                          reso_lat as u32,
                                                          reso_lon as u32,
-                                                         false);
+                                                         1);
                     stewart(&conf, &obs_points).unwrap()
                 }
                 "par_stewart" => {
                     if span == 0.0 {
                         panic!("Invalid or missing span value !")
                     }
-                    println!("stewart parallel");
+                    let nb_core = num_cpus::get();
                     let conf = StewartPotentialGrid::new(span,
                                                          b,
                                                          SmoothType::Exponential,
                                                          &bbox,
                                                          reso_lat as u32,
                                                          reso_lon as u32,
-                                                         true);
+                                                         nb_core);
+                    println!("stewart (using {:?} core)", nb_core);
                     stewart(&conf, &obs_points).unwrap()
                 }
                 &_ => unreachable!(),

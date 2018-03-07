@@ -120,7 +120,7 @@ pub fn parse_geojson_points<T>(path: &str, field_name: &str) -> Result<Vec<T>>
                 } else {
                     value.to_string().replace("\"", "").parse::<f64>()?
                 };
-                res.push(T::new(positions[1], positions[0], val));
+                res.push(T::new(positions[0], positions[1], val));
             }
         } else {
             return Err("Error: empty FeatureCollection".into());

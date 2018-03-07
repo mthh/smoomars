@@ -30,12 +30,8 @@ impl<'a> StewartPotentialGrid<'a> {
                bbox: &'a Bbox,
                reso_x: u32,
                reso_y: u32,
-               parallel: bool)
+               n_thread: u32)
                -> Self {
-        let n_thread = match parallel {
-            true => 3,
-            false => 1,
-        };
         match interaction_type {
             SmoothType::Exponential => {
                 StewartPotentialGrid {
