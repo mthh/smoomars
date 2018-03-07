@@ -17,7 +17,7 @@ fn example(c: Common) {
                                           &bbox,
                                           reso_lat,
                                           reso_lon,
-                                          true);
+                                          2);
     let res_stew: Vec<SphericalPtValue> = stewart(&conf1, &obs_points).unwrap();
     let mut z1 = Vec::with_capacity(res_stew.len());
     for pt in res_stew {
@@ -129,7 +129,7 @@ fn example(c: Common) {
                                           &bbox,
                                           reso_x,
                                           reso_y,
-                                          false);
+                                          1);
     let res_stew: Vec<CartesianPtValue> = stewart(&conf1, &obs_points_two_stocks).unwrap();
     let mut z1 = Vec::with_capacity(res_stew.len());
     for pt in res_stew {
@@ -155,7 +155,7 @@ fn example(c: Common) {
 
 
     let conf1 =
-        StewartPotentialGrid::new(2.5, 2.0, SmoothType::Pareto, &bbox, reso_x, reso_y, false);
+        StewartPotentialGrid::new(2.5, 2.0, SmoothType::Pareto, &bbox, reso_x, reso_y, 1);
     let res_stew: Vec<CartesianPtValue> = stewart(&conf1, &obs_points_two_stocks).unwrap();
     let mut z1 = Vec::with_capacity(res_stew.len());
     for pt in res_stew {
