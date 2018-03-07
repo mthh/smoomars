@@ -23,7 +23,7 @@ mod test {
                                               &bbox,
                                               reso_lat,
                                               reso_lon,
-                                              true);
+                                              2);
         let res_par = stewart(&conf1, &obs_points).unwrap();
         let conf2 = StewartPotentialGrid::new(15000.0,
                                               2.0,
@@ -31,7 +31,7 @@ mod test {
                                               &bbox,
                                               reso_lat,
                                               reso_lon,
-                                              false);
+                                              1);
         let res = stewart(&conf2, &obs_points).unwrap();
         assert_eq!(res_par.len(), res.len());
         for i in 0..res.len() {
