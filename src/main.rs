@@ -140,7 +140,7 @@ fn main() {
                     if span == 0.0 {
                         panic!("Invalid or missing span value !")
                     }
-                    let nb_core = num_cpus::get();
+                    let nb_core = num_cpus::get() as u32;
                     let conf = StewartPotentialGrid::new(span,
                                                          b as f64,
                                                          SmoothType::Exponential,
@@ -203,7 +203,7 @@ fn main() {
                     if span == 0.0 {
                         panic!("Invalid or missing span value !")
                     }
-                    let nb_core = num_cpus::get();
+                    let nb_core = num_cpus::get() as u32;
                     let conf = StewartPotentialGrid::new(span,
                                                          b,
                                                          SmoothType::Exponential,
