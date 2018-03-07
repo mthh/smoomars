@@ -11,3 +11,8 @@ matrix:
 
 script:
   - cargo test
+
+addons:
+  apt:
+    packages:
+      - libgdal-dev
