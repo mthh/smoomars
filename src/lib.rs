@@ -20,6 +20,9 @@ extern crate gdal;
 extern crate geojson;
 extern crate jobsteal;
 extern crate rulinalg;
+extern crate flat_projection;
+// extern crate contour;
+// extern crate classif;
 
 mod errors;
 mod bbox;
@@ -31,7 +34,7 @@ pub mod utils;
 
 pub use self::bbox::Bbox;
 pub use self::idw::idw_interpolation1 as idw_interpolation;
-pub use self::pot_stewart::{SmoothType, StewartPotentialGrid, stewart, stewart_interpolation};
+pub use self::pot_stewart::{SmoothType, StewartPotentialGrid, stewart, stewart_interpolation, flat_stewart_interpolation};
 pub use self::rbf::{Rbf, rbf_interpolation};
 pub use self::utils::{PtValue, SphericalPtValue, CartesianPtValue};
 pub use errors::*;

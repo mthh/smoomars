@@ -8,6 +8,8 @@ use errors::*;
 use bbox::Bbox;
 use geojson::{Feature, FeatureCollection, GeoJson, Geometry, Value};
 use gdal::raster::{Driver, Buffer};
+// use contour::ContourBuilder;
+// use classif::get_jenks_breaks;
 
 
 static R: f64 = 6372.8 * 1000.0;
@@ -174,6 +176,29 @@ pub fn save_json_points<T>(path: &str, result_points: Vec<T>) -> Result<()>
     file.write(encoded.as_bytes())?;
     Ok(())
 }
+
+// pub fn make_contours(path: &str, result_points: Vec<SphericalPtValue>, dx: u32, dy: u32, bbox: &Bbox) -> Result<()> {
+//     let mut features = Vec::with_capacity(result_points.len());
+//     for res_pt in result_points {
+//         let (lat, lon, value) = res_pt.get_triplet();
+//         values.push(value);
+//     }
+//     let mut sorted_values = values.iter().cloned();
+//     sorted_values.sort_by(|a,b| a.partial_cmp(b).unwrap());
+//     let breaks = get_jenks_breaks(&sorted_values, 8);
+//     let c = ContourBuilder::new(breaks, dx - 1, dy - 1, true);
+//     let res = c.contours(&values);
+//     let feature_collection = FeatureCollection {
+//         bbox: None,
+//         features: res,
+//         foreign_members: None,
+//     };
+//     let serialized = GeoJson::from(feature_collection).to_string();
+//     let mut file = File::create(path)?;
+//     file.write(serialized.as_bytes())?;
+//     Ok(())
+// }
+
 
 pub fn save_geojson_points(path: &str, result_points: Vec<SphericalPtValue>) -> Result<()> {
     let mut features = Vec::with_capacity(result_points.len());

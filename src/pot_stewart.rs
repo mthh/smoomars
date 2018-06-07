@@ -4,7 +4,7 @@ use bbox::Bbox;
 use std::f64;
 use std::marker::{Send, Sync};
 use jobsteal::{make_pool, BorrowSpliteratorMut, Spliterator};
-
+use flat_projection::FlatProjection;
 
 #[derive(Debug, Clone)]
 pub enum SmoothType {
@@ -101,6 +101,52 @@ impl<'a, T> Stewart<'a, T>
     }
 }
 
+pub struct FlatStewart<'a, T: 'a> {
+    obs_points: &'a [T],
+    // span: f64,
+    beta: f64,
+    alpha: f64,
+    distance_function: fn(f64, f64, f64) -> f64,
+    proj: FlatProjection<f64>,
+}
+
+impl<'a, T> FlatStewart<'a, T>
+    where T: PtValue
+{
+    pub fn new(obs_points: &'a [T], distance_function: &str, span: f64, beta: Option<f64>, proj: FlatProjection<f64>) -> Self {
+        let _beta: f64 = if beta.is_some() { beta.unwrap() } else { 2.0 };
+        let (_dist_func, alpha): (fn(f64, f64, f64) -> f64, f64) = match distance_function {
+            "exponential" => (exponential, 0.69314718055994529 / (span).powf(_beta)),
+            "pareto" => (pareto, ((2.0 as f64).powf(1.0 / _beta) - 1.0) / span),
+            &_ => panic!("Invalid function name!"),
+        };
+        FlatStewart {
+            obs_points: obs_points,
+            // span: span,
+            beta: _beta,
+            alpha: alpha,
+            distance_function: _dist_func,
+            proj: proj,
+        }
+    }
+
+    pub fn interp_point(&self, pt: (f64, f64)) -> f64 {
+        let flatpoint = self.proj.project(pt.0, pt.1);
+        let func = self.distance_function;
+        let value = self.obs_points
+            .iter()
+            .fold(0.0, |mut sum, obs_pt| {
+                let (lon, lat, val) = obs_pt.get_triplet();
+                let obs_flatpoint = self.proj.project(lon, lat);
+                sum += val * func(self.alpha, self.beta, obs_flatpoint.distance(&flatpoint));
+                sum
+            });
+        value
+    }
+}
+
+
+
 #[inline(always)]
 fn exponential(alpha: f64, beta: f64, dist: f64) -> f64 {
     (-alpha * dist.powf(beta)).exp()
@@ -136,6 +182,35 @@ pub fn stewart_interpolation<T>(reso_x: u32,
     }
     Ok(unknown_pts)
 }
+
+pub fn flat_stewart_interpolation<T>(reso_x: u32,
+                                reso_y: u32,
+                                bbox: &Bbox,
+                                obs_points: &[T],
+                                func_name: &str,
+                                span: f64,
+                                beta: Option<f64>)
+                                -> Result<Vec<T>>
+    where T: PtValue
+{
+
+    let x_step = (bbox.max_x - bbox.min_x) / reso_x as f64;
+    let y_step = (bbox.max_y - bbox.min_y) / reso_y as f64;
+    let m_lat = (bbox.max_y + bbox.min_y) / 2.;
+    let proj = FlatProjection::new(m_lat);
+    let mut unknown_pts = Vec::with_capacity((reso_x * reso_y) as usize);
+    let stewart = FlatStewart::new(obs_points, func_name, span, beta, proj);
+    for i in 0..reso_x {
+        for j in 0..reso_y {
+            let x = bbox.min_x + x_step * i as f64;
+            let y = bbox.min_y + y_step * j as f64;
+            let value = stewart.interp_point((x, y));
+            unknown_pts.push(T::new(x, y, value));
+        }
+    }
+    Ok(unknown_pts)
+}
+
 
 pub fn stewart<T>(stewart_config: &StewartPotentialGrid, obs_points: &[T]) -> Result<Vec<T>>
     where T: PtValue + Send + Sync
